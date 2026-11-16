@@ -1,0 +1,399 @@
+CAHIER DES CHARGES  /  PROJET B
+Projet B  •  Cadrage version 1.1  |  Page 1
+DOSSIER DE CONCEPTION  /  ENSI / DATA MINING / AI ENGINEERING
+Intelligent Banking Customer Risk Platform
+Cahier des charges académique — segmentation, scoring explicable et déploiement AWS — édition révisée 
+avec critères Data & Deployment
+ENVIRONNEMENT  Développement local ; démonstration AWS Academy Learner Lab (si autorisé)
+FINALITÉ  Relier clustering client et prédiction explicable du défaut de paiement
+DATE  25 octobre 2026  |  RÉVISION KPI  v1.1
+STATUT  Proposition académique sous réserve du choix/accord des enseignantes
+SOURCE PRINCIPALE  UCI Default of Credit Card Clients — 30 000 individus, 23 variables prédictives
+Décision structurante
+Le projet articule deux modules universitaires indépendamment évaluables : Challenge 2 (clustering et tableau 
+d’insights) et Challenge 1, cas « Banque — Scoring de crédit » (classification binaire explicable). Le score de 
+risque ne doit pas être confondu avec une décision de crédit automatique. Le segment obtenu par clustering 
+peut être testé comme feature, mais n’est conservé que si son utilité est démontrée sans fuite.
+Résumé exécutif
+Les décisions de risque requièrent à la fois une vue agrégée sur des profils de clientèle et une estimation 
+individuelle du défaut. La segmentation révèle des structures latentes mais n’est pas prédictive par nature ; la 
+classification estime une probabilité conditionnelle mais peut masquer des différences de profils et des biais. Le 
+produit proposé combine les deux lectures dans une application explicable, reproductible et déployable lors des 
+sessions AWS Academy.
+1. Identification détaillée du problème
+Problème 1 — Hétérogénéité — Des clients présentant des limites de crédit, usages et historiques de 
+remboursement différents ne forment pas une population homogène. Un indicateur global peut masquer des 
+sous-groupes utiles à l’analyse.
+Problème 2 — Risque individuel — Le défaut de paiement du mois suivant doit être estimé à partir des 
+informations connues avant ce défaut. La classification doit calibrer les probabilités et gérer le déséquilibre de 
+classes.
+Problème 3 — Interprétabilité — Un score sans facteurs contributifs ou dont les variables sont transformées 
+sans traçabilité n’apporte pas un support crédible à un analyste métier. Les explications locales doivent rester 
+cohérentes avec l’estimation fournie.
+Problème 4 — Clustering trompeur — Un cluster peut résulter de l’échelle des variables, d’un choix arbitraire 
+de paramètres ou d’un algorithme instable. Sa projection UMAP/t-SNE en 2D n’est pas une preuve de qualité.
+Problème 5 — Fuites et biais — Inclure la cible dans le clustering, ajuster les transformations sur tout le 
+dataset ou optimiser à partir du test final invalide l’évaluation. Certaines variables démographiques demandent 
+un audit d’équité et de pertinence.
+Contrainte cloud — Learner Lab peut arrêter les instances en fin de session et limiter services/rôles ; il faut une 
+démonstration relançable plutôt qu’une promesse de disponibilité 24 h/24.
+Question centrale
+Comment produire une segmentation interprétable de clients bancaires et un score de défaut robuste, comparer 
+explicitement les modèles de classification, puis démontrer l’ensemble sous AWS Academy sans fuite statistique 
+ni prétention de décision bancaire autonome ?
+
+CAHIER DES CHARGES  /  PROJET B
+Projet B  •  Cadrage version 1.1  |  Page 2
+2. Conformité aux documents académiques
+Document
+Exigences à conserver
+Challenge 2 — Clustering
+Prétraitement, réduction 2D, K-Means/DBSCAN/GMM/OPTICS selon sélecteur, scoring 
+taille/stabilité/profils, interactions et comparaisons.
+Challenge 1 — XAI
+Téléchargement automatique, import CSV, six modules, modèles 
+LogReg/arbre/KNN/Random Forest/XGBoost, ROC/PR, seuil, SHAP et LIME, API FastAPI.
+Partie cloud non imposée
+Docker + EC2/S3 sont une extension valorisante, à adapter aux restrictions de Learner Lab.
+Validation enseignante
+Un seul cas binaire de Challenge 1 est sélectionné. Choisir « Banque — Scoring de crédit » 
+et vérifier que la fusion est acceptée.
+3. Données et protocole
+Jeu de données — UCI Default of Credit Card Clients (Taiwan) : 30 000 clients, 23 variables prédictives, cible 
+binaire de défaut de paiement le mois suivant ; l’identifiant technique est exclu des features.
+Champs clés — Limite de crédit, statut de remboursement par mois, montants facturés et remboursés, 
+variables démographiques documentées. Vérifier catégories atypiques et valeurs codées, sans déduire leur sens 
+lorsque la documentation est insuffisante.
+Découpage — Division stratifiée reproductible train/validation/test, par exemple 60 %/20 %/20 %. Sans dates 
+d’événements individuelles suffisantes, ne pas présenter ce split comme une validation prospective temporelle.
+Hygiène de pipeline — Imputation, encodage, standardisation, sélection d’hyperparamètres, PCA et clustering 
+sont ajustés uniquement sur train ; transformation de validation/test séparément.
+Conception de la fusion — Entrée communes X → branche clustering non supervisé et branche classification 
+supervisée ; tester X + segment_id uniquement avec un modèle de segmentation entraîné sur train et une 
+ablation documentée.
+Interdictions méthodologiques
+•  Ne jamais utiliser la variable de défaut pour construire les clusters.
+•  Ne jamais annoncer qu’une segmentation améliore le scoring sans ablation robuste avec/sans cluster_id.
+•  Ne jamais choisir le modèle final en ré-optimisant sur le test réservé.
+•  Ne jamais utiliser le score académique pour refuser un vrai crédit.
+4. Fonctionnalités et modules
+Module 1 — Données
+•  Récupération automatique via ucimlrepo / OpenML ou export autorisé ; import CSV avec cible choisie.
+•  EDA : distributions, déséquilibre de classes, corrélations, valeurs manquantes, profil de variables.
+Module 2 — Préparation et splits
+•  Prétraitement paramétrable, encodage, normalisation, pipeline reproductible, partition préservée.
+•  Gestion des colonnes inconnues et validation stricte des champs en inférence.
+Module 3 — Customer clustering
+•  K-Means, GMM et DBSCAN/HDBSCAN pour la comparaison ; PCA, t-SNE, UMAP pour exploration 2D.
+•  Silhouette, Davies–Bouldin, taille des clusters, profils, stabilité sur ré-échantillonnages.
+•  Prédiction du segment d’un nouvel individu avec K-Means/GMM ; HDBSCAN seulement si méthode 
+d’assignation explicitée.
+
+CAHIER DES CHARGES  /  PROJET B
+Projet B  •  Cadrage version 1.1  |  Page 3
+Module 4 — Credit scoring
+•  Régression logistique, arbre de décision, KNN, Random Forest, XGBoost et optimisation limitée des 
+hyperparamètres.
+•  ROC-AUC, PR-AUC, précision, rappel, F1, Gini et KS ; choix du seuil sur validation, pas sur test.
+•  Calibration et documentation de la prévalence.
+Module 5 — Explainable AI
+•  Importance par permutation, SHAP summary / waterfall, dépendances, explication LIME locale, confrontation 
+des résultats.
+•  Formulaire pour individu fictif ou sélection d’une ligne test ; sortie probabilité, prédiction au seuil et principales 
+contributions.
+•  Évaluation des biais : groupes, taux de faux positifs/négatifs, limites de représentativité.
+Module 6 — API et expérience web
+•  FastAPI : /health, /predict, /explain, /segments, /metrics ; schémas Pydantic, exemples, codes d’erreur.
+•  Interface Streamlit/Dash avec menu de modèles, paramètres, matrices/confusions, profils et exports.
+•  Conteneur Docker redéployable sur AWS EC2 durant les sessions autorisées.
+5. Architecture technique cible AWS Academy
+Développement/entraînement local : Python + Scikit-learn/XGBoost + SHAP/LIME + sauvegarde artefacts. 
+AWS : S3 pour artefacts autorisés et fichiers de démonstration ; une petite instance EC2 héberge l’API FastAPI 
+et l’application Streamlit dans Docker, uniquement si EC2/S3/rôles réseau sont disponibles. Un script de 
+bootstrap recrée l’environnement. Aucune dépendance à SageMaker, RDS, NAT Gateway ou EKS n’est 
+nécessaire.
+Couche
+Technologies
+Raison
+Données
+Pandas, NumPy, UCI fetch
+Données publiques et validation.
+Clustering
+Scikit-learn K-Means, GMM, DBSCAN ; 
+UMAP
+Comparer des structures latentes.
+Classification
+LogReg, arbres, KNN, RF, XGBoost
+Comparaison académique complète.
+Interprétation
+SHAP, LIME, permutation
+Analyses globale et individuelle.
+API / UI
+FastAPI, Pydantic, Streamlit, Plotly
+Application utilisable.
+MLOps
+MLflow local ou logs versionnés, tests, Git
+Expériences reproductibles.
+AWS
+EC2, S3, Docker (si autorisés)
+Déploiement démonstratif récupérable.
+6. Mesure scientifique et critères métiers
+La classification prédit une probabilité de défaut ; sa qualité ne se limite pas à l’accuracy. Comparer au 
+DummyClassifier et à une régression logistique. La probabilité doit être calibrée. L’évaluation du clustering inclut 
+stabilité et interprétabilité, pas seulement silhouette. Le segment_id n’est pas une réussite si son inclusion 
+détériore ou ne modifie pas la qualité du modèle de façon robuste.
+Formules et règles d’interprétation
+•  Gini = 2 × ROC-AUC − 1 ; PR-AUC s’interprète par rapport à la prévalence de défaut du jeu de test.
+•  ECE = somme, sur les groupes de probabilités, du poids du groupe × |fréquence observée − confiance 
+moyenne|.
+•  Stabilité des segments = ARI des labels prédits sur un même échantillon de référence après bootstrap de 
+l’entraînement.
+
+CAHIER DES CHARGES  /  PROJET B
+Projet B  •  Cadrage version 1.1  |  Page 4
+•  Brier score = moyenne des carrés (probabilité prédite − cible binaire) ; plus faible est meilleur.
+•  Le gain de segment_id est validé seulement sur validation via ablation, avec estimation d’incertitude et 
+réévaluation unique sur test gelé.
+7. KPIs et seuils à trois niveaux
+L1 = application académique fonctionnelle ; L2 = livrable très bien validé ; L3 = démonstrateur mature et 
+reproductible. Les cibles de performance prédictive sont des objectifs indicatifs pour ce dataset ; elles ne 
+justifient jamais d’adapter le test jusqu’à obtenir le score voulu.
+KPI et méthode
+L1 MVP
+L2 stable
+L3 mature
+Téléchargement, schéma et cible UCI vérifiés
+100 %
+100 %
+100 % + hash
+Pipelines sans fuite : tests de séparation et fit
+100 % / 10 tests
+100 % / 25
+100 % / 50
+Comparaison des 5 modèles Challenge 1
+5 / 5
+5 / 5 + tuning
+5 / 5 + CI
+ROC-AUC sur test final (objectif)
+≥ 0,70
+≥ 0,74
+≥ 0,76
+PR-AUC / prévalence test (objectif)
+≥ 1,3 ×
+≥ 1,6 ×
+≥ 1,8 ×
+Brier : gain relatif vs prédicteur de prévalence
+≥ 2 %
+≥ 5 %
+≥ 8 %
+ECE après calibration (objectif)
+≤ 0,09
+≤ 0,06
+≤ 0,04
+Clustering : nb d’algorithmes comparés
+≥ 2
+≥ 3
+≥ 4
+Stabilité ARI K-Means/GMM via bootstrap (objectif)
+≥ 0,40
+≥ 0,60
+≥ 0,75
+Profils de clusters documentés et vérifiables
+≥ 2
+≥ 3
+≥ 3 + réserve
+Ablation modèle avec/sans segment_id
+Comparaison
+ΔAUC + IC
+Garder si gain 
+robuste
+SHAP/LIME : cas locaux expliqués sans erreur
+≥ 5
+≥ 20
+≥ 50
+Audit équité / limites des sous-groupes
+1 rapport
+Groupes 
+évaluables
+Réexamen et limites
+Latence API P95 (EC2, session active)
+≤ 4 s
+≤ 2 s
+≤ 1,5 s
+Temps de relance application depuis lab disponible
+≤ 20 min
+≤ 10 min
+≤ 5 min
+Succès des tests API/entrée / contrôle des erreurs
+≥ 90 %
+≥ 98 %
+100 % critiques
+Dépense AWS / budget lab alloué
+≤ 100 %
+≤ 100 % + alerte
+≤ 100 % + bilan
+7.1 KPIs Data Engineering / ETL tabulaire (sans Big Data distribué)
+Le sujet B traite un volume académique modéré. Les mesures vérifient une préparation fiable, réutilisable et 
+identique à l’inférence cloud.
+KPI données / mesure
+L1 — MVP
+L2 — stable
+L3 — mature
+Volume validé à chaque chargement (UCI Default of Credit Card 
+Clients)
+30 000 lignes
+30 000 lignes + hash
+30 000 + version/hash
+Champs critiques détectés / scénarios de schéma injectés
+100 % / 10 cas
+100 % / 30 cas
+100 % / 60 cas
+Lignes supprimées sans justification explicite au journal ETL
+0
+0
+0 + audit
+Durée ETL train/val/test hors téléchargement ; VM de référence 
+figée
+≤ 120 s
+≤ 60 s
+≤ 30 s
+Égalité prétraitement train / API : écart prédiction sur jeux de 
+référence
+≤ 1e-6 / 20 cas
+≤ 1e-6 / 100 cas
+≤ 1e-6 / 300 cas
+
+CAHIER DES CHARGES  /  PROJET B
+Projet B  •  Cadrage version 1.1  |  Page 5
+KPI données / mesure
+L1 — MVP
+L2 — stable
+L3 — mature
+Artefacts chargés avec identifiant modèle, split, dataset et 
+checksum
+100 % / 10
+100 % / 30
+100 % / 100
+Prétraitements ajustés hors train ou variables cibles injectées 
+dans X
+0 / 10 tests
+0 / 25 tests
+0 / 50 tests
+7.2 KPIs AWS Academy : déploiement, exploitation et reprise
+Ces valeurs qualifient un démonstrateur sur une session Learner Lab active et des services EC2/S3 
+effectivement autorisés.
+KPI cloud / mesure
+L1 — MVP
+L2 — stable
+L3 — mature
+Déploiement du conteneur EC2 depuis dépôt et artefacts S3, lab 
+actif
+1 / 1 succès
+3 / 3 succès
+5 / 5 succès
+Temps de restauration sur lab disponible après démarrage de 
+session
+≤ 20 min
+≤ 10 min
+≤ 5 min
+HTTP 2xx contrôles de santé sur fenêtre de session active 
+(requêtes répétées)
+≥ 95 % / 15 min
+≥ 99 % / 30 min
+≥ 99,5 % / 60 min
+Inférence FastAPI : P95, charge de démonstration 
+(concurrence)
+≤ 4 s / 1
+≤ 2 s / 5
+≤ 1,5 s / 10
+Parité du modèle local / EC2 sur jeux de test figés
+≤ 1e-6 / 20 cas
+≤ 1e-6 / 100 cas
+≤ 1e-6 / 300 cas
+Tests API critiques réussis (valides, invalides, erreurs et 
+absence fuite)
+100 % / 10 tests
+100 % / 30 tests
+100 % / 60 tests
+Récupération après arrêt/redémarrage EC2 si fonctions lab 
+accessibles
+≤ 20 min
+≤ 10 min
+≤ 5 min
+Logs de requêtes, erreurs, version et durée disponibles
+≥ 90 %
+≥ 99 %
+100 %
+Bucket S3 public / secret dans le dépôt / endpoint sensible non 
+protégé
+0 / 20 vérifications
+0 / 50
+0 / 100 + rapport
+Dépense observée / crédit de labo restant et budget fixé
+≤ 100 %
+≤ 100 % + alerte à 80 
+%
+≤ 100 % + revue 50/80 
+%
+Protocole de mesure et décisions de recette
+•  Périmètre : 30 000 lignes tabulaires = ETL fiable, pas Big Data distribué. Mesurer schémas, fuite train/test, 
+versionnement et parité entraînement/inférence.
+•  AWS Academy : tous les objectifs d'uptime et de latence s'appliquent à une session Learner Lab active et 
+aux services effectivement autorisés, sans promesse de SLA 24/7.
+•  Recette : le temps de reprise commence une fois le lab accessible ; en cas de restrictions réseau, démontrer 
+Docker local et le travail EC2/S3 sans revendiquer une API publique.
+•  Protocole : P95 sur 10 min avec type EC2, région et concurrence documentés ; comparer les mêmes 
+probabilités local/EC2. Les cinq modèles académiques, l'absence de fuite et la sécurité restent bloquants.
+Interprétation des trois portes de validation
+•  L1 : conformité fonctionnelle, modèles et segmentation lancés, split sans fuite, premiers résultats honnêtes. 
+Une AUC inférieure à l’objectif ne justifie pas de falsifier le résultat.
+•  L2 : validation solide, comparaison des baselines, calibrations, variance inter-seeds, modèle de segmentation 
+stable et application AWS relançable.
+
+CAHIER DES CHARGES  /  PROJET B
+Projet B  •  Cadrage version 1.1  |  Page 6
+•  L3 : audit complet des biais, métriques avec intervalles, tests CI, dataset versionné, traçabilité des modèles et 
+démonstration documentée. Le qualificatif « production bancaire » reste interdit sans validation réglementaire 
+et opérationnelle.
+8. Protocole de recette et scénarios obligatoires
+•  Récupérer la même version du dataset deux fois et obtenir le même hash ou une variation explicitée.
+•  Simuler colonnes manquantes, ordre modifié, types invalides, labels absents et entrée hors domaine ; l’API 
+doit rejeter les données invalides.
+•  Comparer un modèle Dummy, LogReg et XGBoost sur le même split final et produire ROC, PR, matrice de 
+confusion et calibration.
+•  Faire varier les hyperparamètres de clustering et prouver que les résultats ne dépendent pas d’une unique 
+projection esthétique.
+•  Vérifier une explication SHAP et LIME pour plusieurs lignes avec des variables connues et documenter les 
+désaccords.
+•  Réaliser un déploiement EC2, arrêter puis relancer la session, rejouer le bootstrap et mesurer le redémarrage 
+réel.
+9. Plan de livraison et risques
+Niveau
+Livrables attendus
+L1
+Notebook EDA, scripts préparation, 5 modèles ML, 2 clustering, première interface, README, tests 
+de fuite.
+L2
+Dashboard complet, API, SHAP/LIME, stabilité et ablation, conteneur, démonstration AWS, one-
+pager.
+L3
+CI, jeux de tests, carte modèle, audit équité, calibration, mesure charge/latence, sauvegardes et 
+procédure de redéploiement.
+Risques et réponses
+•  Risque de surapprentissage : test final gelé, hyperparamètres déterminés sur validation.
+•  Segmentation instable : la traiter comme exploration et ne pas l’utiliser comme feature si ablation négative.
+•  Cloud académique restreint : privilégier Docker local + script EC2, aucun engagement de disponibilité 
+permanente.
+•  Variables sensibles : audit des écarts, documentation des groupes trop petits, aucune décision individuelle 
+automatique.
+•  Données 2005 et pays spécifique : ne pas généraliser directement au crédit bancaire tunisien ou européen.
+10. Critères d’acceptation et formulation CV
+Le projet est académique lorsque les modules choisis sont autorisés, réalisés et démontrés conformément aux 
+énoncés. Une note ou validation du professeur ne couvre pas automatiquement des extensions ajoutées 
+indépendamment. Sur le CV : « Projet académique intégrateur — clustering bancaire et scoring de défaut 
+explicable ; démonstration AWS Academy », en précisant les fonctions réellement implémentées.
+11. Références
+•  ENSI — Challenge 1 : Classification explicable (2026–2027), cas scoring bancaire.
+•  ENSI — Challenge 2 : AI Clustering & Insight Dashboard.
+•  UCI — Default of Credit Card Clients : https://archive.ics.uci.edu/dataset/350
+•  AWS Academy Learner Lab — Student Guide ; restrictions à vérifier par session.

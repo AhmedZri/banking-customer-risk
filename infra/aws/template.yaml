@@ -1,0 +1,74 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Deferred ENSI academic demonstration. Disabled by default; may incur AWS charges when enabled.
+Parameters:
+  EnableDeployment:
+    Type: String
+    Default: 'false'
+    AllowedValues: ['false', 'true']
+  AmiId:
+    Type: AWS::EC2::Image::Id
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+  SubnetId:
+    Type: AWS::EC2::Subnet::Id
+  ExistingInstanceProfile:
+    Type: String
+    Description: Learner Lab existing instance profile, for example LabInstanceProfile; no IAM role is created.
+  InstanceType:
+    Type: String
+    Default: t3.micro
+Conditions:
+  Deploy: !Equals [!Ref EnableDeployment, 'true']
+Resources:
+  Artifacts:
+    Type: AWS::S3::Bucket
+    Condition: Deploy
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        IgnorePublicAcls: true
+        BlockPublicPolicy: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      VersioningConfiguration:
+        Status: Enabled
+  ApplicationSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Condition: Deploy
+    Properties:
+      GroupDescription: No inbound public ports; use authorized SSM port forwarding during lab sessions.
+      VpcId: !Ref VpcId
+  Application:
+    Type: AWS::EC2::Instance
+    Condition: Deploy
+    Properties:
+      ImageId: !Ref AmiId
+      InstanceType: !Ref InstanceType
+      IamInstanceProfile: !Ref ExistingInstanceProfile
+      SubnetId: !Ref SubnetId
+      SecurityGroupIds: [!Ref ApplicationSecurityGroup]
+      MetadataOptions:
+        HttpTokens: required
+        HttpEndpoint: enabled
+      BlockDeviceMappings:
+        - DeviceName: /dev/xvda
+          Ebs:
+            Encrypted: true
+            VolumeSize: 12
+            VolumeType: gp3
+            DeleteOnTermination: true
+      Tags:
+        - Key: Project
+          Value: ENSI-Banking-Risk
+Outputs:
+  ArtifactBucket:
+    Condition: Deploy
+    Value: !Ref Artifacts
+  InstanceId:
+    Condition: Deploy
+    Value: !Ref Application

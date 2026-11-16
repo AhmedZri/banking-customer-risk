@@ -1,0 +1,18 @@
+{
+  "artifacts/uci/model.joblib": {
+    "sha256": "ad0eb20cc9f688d424ab36da2ae37f159c2b13766211c01f308ae9834aaca3e3",
+    "bytes": 10698752
+  },
+  "artifacts/uci/metrics.json": {
+    "sha256": "a9c432d68e25637e2fe70c9634496b20bf498df7bc882da914c636e188e62334",
+    "bytes": 3669966
+  },
+  "artifacts/uci/projection.csv": {
+    "sha256": "d336e0d4bd13b4d36d15654f98cb0a15a2ba98dc3b1c50eec62554278f75d925",
+    "bytes": 92843
+  },
+  "artifacts/uci/TEST_EVALUATED.json": {
+    "sha256": "fcdd622c003d880b75197029ba50f1de9b070da0b081b6383d32cc16dc9bc5f5",
+    "bytes": 136
+  }
+}
